@@ -7,6 +7,12 @@
 class Flight_Plan_Parser {
 
 	/**
+	 * ATC flight plan source
+	 * @var string
+	 */
+	private $_sSource = '';
+
+	/**
 	 * Item #7 AIRCRAFT IDENTIFICATION
 	 * @var string
 	 */
@@ -426,4 +432,164 @@ class Flight_Plan_Parser {
 		return $this->_sOtherInfo;
 	}
 
+	/**
+	 * @param string $sSource
+	 */
+	public function setSource( $sSource ) {
+		$this->_sSource = trim( mb_strtoupper( preg_replace( "/\r|\n/", "", $sSource ) ) );
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getSource() {
+		return $this->_sSource;
+	}
+
+	/**
+	 * @return bool
+	 * @throws Exception
+	 */
+	public function startParsing() {
+		$sSource = $this->getSource();
+		if( empty( $sSource ) ) {
+			throw new Exception( 'No flight plan source set!' );
+		}
+		$sBasic = str_replace( array( '(FPL', ')' ), '', $sSource );
+
+		$this->parseSyntax( $sBasic );
+
+		return true;
+	}
+
+	/**
+	 * Export data as ATC flight plan
+	 * @return string
+	 */
+	public function exportAtcFlightplan() {
+		$sReturn = '(FPL-' . $this->getCallsign() . '-' . $this->getFlightRules() . $this->getTypeOfFlight() . PHP_EOL;
+		$sReturn.= '-' . ( ( $this->getNumber() <= 0 || $this->getNumber() > 10 ) ? '' : $this->getNumber() ) . $this->getTypeOfAircraft() . '/' . $this->getWakeCat() . '-' . $this->getEquipment() . '/' . $this->getTransponder() . PHP_EOL;
+		$sReturn.= '-' . $this->getDepIcao() . $this->getTime() . PHP_EOL;
+		$sReturn.= '-' . $this->getSpeedType() . $this->getSpeed() . $this->getLevelType() . $this->getLevel() . ' ' . $this->getRoute() . PHP_EOL;
+		$sReturn.= '-' . $this->getOtherInfo() . ')' . PHP_EOL;
+		$sReturn.= ( count( $this->getSuplInfo() ) > 0 ) ? '-' . implode( ' ', $this->getSuplInfo() ) : '';
+
+		return $sReturn;
+	}
+
+	/**
+	 * parse
+	 * @param $sBasic
+	 */
+	private function parseSyntax( $sBasic ) {
+		$aBasic = explode( '-', $sBasic );
+
+		//Callsign
+		if( array_key_exists( 1, $aBasic ) ) {
+			$this->setCallsign( $aBasic[ 1 ] );
+		}
+		//Flight Rules
+		if( array_key_exists( 2, $aBasic ) ) {
+			$this->setFlightRules( substr( $aBasic[ 2 ], 0, 1 ) );
+			$this->setTypeOfFlight( substr( $aBasic[ 2 ], 1, 1 ) );
+		}
+		//Aircraft
+		if( array_key_exists( 3, $aBasic ) ) {
+			$aAicraft = explode( '/', $aBasic[ 3 ] );
+
+			$aMatches = array();
+			preg_match( '/(\d{1})(\S{3,4})/', $aAicraft[ 0 ], $aMatches );
+			if( count( $aMatches ) > 0 ) {
+				$this->setNumber( $aMatches[ 1 ] );
+				$this->setTypeOfAircraft( $aMatches[ 2 ] );
+			} else {
+				$this->setTypeOfAircraft( $aAicraft[ 0 ] );
+			}
+
+			if( array_key_exists( 1, $aAicraft ) ) {
+				$this->setWakeCat( $aAicraft[ 1 ] );
+			}
+		}
+		//Equipment
+		if( array_key_exists( 4, $aBasic ) ) {
+			$aEquip = explode( '/', $aBasic[ 4 ] );
+			$this->setEquipment( $aEquip[ 0 ] );
+			if( array_key_exists( 1, $aEquip ) ) {
+				$this->setTransponder( $aEquip[ 1 ] );
+			}
+		}
+		//Dep. airport info
+		if( array_key_exists( 5, $aBasic ) ) {
+			$aMatches = array();
+
+			preg_match( '/(\D*)(\d*)/', $aBasic[ 5 ], $aMatches );
+			if( array_key_exists( 1, $aMatches ) ) {
+				$this->setDepIcao( $aMatches[ 1 ] );
+			}
+			if( array_key_exists( 2, $aMatches ) ) {
+				$this->setTime( $aMatches[ 2 ] );
+			}
+		}
+		//Speed and route info
+		if( array_key_exists( 6, $aBasic ) ) {
+			$aMatches = array();
+			//match speed and level
+			if( preg_match( '/(\D*)(\d*)(\D*)(\d*)/', $aBasic[ 6 ], $aMatches ) ) {
+				if( array_key_exists( 1, $aMatches ) ) {
+					$this->setSpeedType( $aMatches[ 1 ] );
+				}
+				if( array_key_exists( 2, $aMatches ) ) {
+					$this->setSpeed( $aMatches[ 2 ] );
+				}
+				if( array_key_exists( 3, $aMatches ) ) {
+					$this->setLevelType( $aMatches[ 3 ] );
+				}
+				if( array_key_exists( 4, $aMatches ) ) {
+					$this->setLevel( $aMatches[ 4 ] );
+				}
+
+				$this->setRoute( trim( substr( $aBasic[ 6 ], mb_strlen( $aMatches[ 0 ] ) ) ) );
+			} else {
+				$this->setRoute( trim( $aBasic[ 6 ] ) );
+			}
+		}
+		//Dest. airport info
+		if( array_key_exists( 7, $aBasic ) ) {
+			$aMatches = array();
+
+			preg_match( '/(\D{4})(\d{4})/', $aBasic[ 7 ], $aMatches );
+			if( array_key_exists( 1, $aMatches ) ) {
+				$this->setDestIcao( $aMatches[ 1 ] );
+			}
+			if( array_key_exists( 2, $aMatches ) ) {
+				$this->setTtlEeet( $aMatches[ 2 ] );
+			}
+			$aMatches = array();
+
+			preg_match( '/(\D{4})(\d{4})(\s{1})(\D{4})/', $aBasic[ 7 ], $aMatches );
+			if( array_key_exists( 1, $aMatches ) ) {
+				$this->setAltnIcao( $aMatches[ 4 ] );
+			}
+			$aMatches = array();
+
+			preg_match( '/(\D{4})(\d{4})(\s{1})(\D{4})(\s{1})(\D{4})/', $aBasic[ 7 ], $aMatches );
+			if( array_key_exists( 1, $aMatches ) ) {
+				$this->setSecndAltnIcao( $aMatches[ 6 ] );
+			}
+		}
+		//Other info
+		if( array_key_exists( 8, $aBasic ) ) {
+			$this->setOtherInfo( $aBasic[ 8 ] );
+		}
+
+		//Supl. Info
+		if( array_key_exists( 9, $aBasic ) ) {
+			$aMatches = array();
+			//@todo regex does not get a value with whitespaces!
+			preg_match_all( '/(\D{1})([\/]{1})(\S*)/', $aBasic[ 9 ], $aMatches );
+			if( array_key_exists( 0, $aMatches ) && count( $aMatches[ 0 ] ) > 0 ) {
+				$this->setSuplInfo( $aMatches[ 0 ] );
+			}
+		}
+	}
 }
