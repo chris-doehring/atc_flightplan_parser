@@ -456,6 +456,7 @@ class Flight_Plan_Parser {
 			throw new Exception( 'No flight plan source set!' );
 		}
 		$sBasic = str_replace( array( '(FPL', ')' ), '', $sSource );
+		$sBasic = str_replace( '--', '-', $sBasic );
 
 		$this->parseSyntax( $sBasic );
 
@@ -567,13 +568,13 @@ class Flight_Plan_Parser {
 			$aMatches = array();
 
 			preg_match( '/(\D{4})(\d{4})(\s{1})(\D{4})/', $aBasic[ 7 ], $aMatches );
-			if( array_key_exists( 1, $aMatches ) ) {
+			if( array_key_exists( 4, $aMatches ) ) {
 				$this->setAltnIcao( $aMatches[ 4 ] );
 			}
 			$aMatches = array();
 
 			preg_match( '/(\D{4})(\d{4})(\s{1})(\D{4})(\s{1})(\D{4})/', $aBasic[ 7 ], $aMatches );
-			if( array_key_exists( 1, $aMatches ) ) {
+			if( array_key_exists( 6, $aMatches ) ) {
 				$this->setSecndAltnIcao( $aMatches[ 6 ] );
 			}
 		}
@@ -585,10 +586,14 @@ class Flight_Plan_Parser {
 		//Supl. Info
 		if( array_key_exists( 9, $aBasic ) ) {
 			$aMatches = array();
-			//@todo regex does not get a value with whitespaces!
-			preg_match_all( '/(\D{1})([\/]{1})(\S*)/', $aBasic[ 9 ], $aMatches );
+
+			preg_match_all( '/(\D{1})([\/]{1})([A-Z0-9 ]*(?!\\/))/', $aBasic[ 9 ], $aMatches );
 			if( array_key_exists( 0, $aMatches ) && count( $aMatches[ 0 ] ) > 0 ) {
-				$this->setSuplInfo( $aMatches[ 0 ] );
+				$aSuplInfo = array();
+				foreach( $aMatches[ 0 ] as $sItem ) {
+					$aSuplInfo[] = trim( $sItem );
+				}
+				$this->setSuplInfo( $aSuplInfo );
 			}
 		}
 	}
