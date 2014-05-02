@@ -1,7 +1,7 @@
 <?php
 /**
  * @author Chris Doehring (info@chrisdoehring.de)
- * @date 01.05.14
+ * @date 2014-05-01
  */
 
 class Flight_Plan_Parser {
@@ -299,10 +299,17 @@ class Flight_Plan_Parser {
 		$this->_sRoute = $sRoute;
 	}
 
-	/**
-	 * @return string
-	 */
-	public function getRoute() {
+    /**
+     * @param bool $blRemoveStepClimbs
+     * @return string
+     */
+    public function getRoute( $blRemoveStepClimbs = false ) {
+        if( $blRemoveStepClimbs === true ) {
+            $sSearchPattern = '/(\D{1,5})([\/]{1})([A-Z0-9]{8,9})/';
+            $sReplace = '$1';
+            return preg_replace( $sSearchPattern, $sReplace, $this->_sRoute );
+        }
+
 		return $this->_sRoute;
 	}
 
@@ -411,10 +418,30 @@ class Flight_Plan_Parser {
 		$this->_aSuplInfo = $aSuplInfo;
 	}
 
-	/**
-	 * @return array
-	 */
-	public function getSuplInfo() {
+    /**
+     * @param bool $blSplitted
+     * @return array
+     */
+    public function getSuplInfo( $blSplitted = false ) {
+        if( $blSplitted === true ) {
+            $aData = $this->_aSuplInfo;
+            if( count( $aData ) > 0 ) {
+                $aReturn = array();
+                foreach( $aData as $sData ) {
+                    $aParts = explode( '/', $sData, 2 );
+                    if( array_key_exists( 1, $aParts ) ) {
+                        $aReturn[ $aParts[ 0 ] ] = $aParts[ 1 ];
+                    } else {
+                        $aReturn[ $aParts[ 0 ] ] = '';
+                    }
+                }
+
+                return $aReturn;
+            } else {
+                return array();
+            }
+        }
+
 		return $this->_aSuplInfo;
 	}
 
@@ -425,10 +452,21 @@ class Flight_Plan_Parser {
 		$this->_sOtherInfo = $sOtherInfo;
 	}
 
-	/**
-	 * @return string
-	 */
-	public function getOtherInfo() {
+    /**
+     * @param bool $blGetAsArray
+     * @return array|string
+     */
+    public function getOtherInfo( $blGetAsArray = false ) {
+        if( $blGetAsArray === true ) {
+            $aMatches = array();
+            preg_match_all( '/(\D{3})([\/]{1})([A-Z0-9 ]*(?= \D{3}\\/))/', $this->_sOtherInfo, $aMatches );
+            if( array_key_exists( 1, $aMatches ) && count( $aMatches[ 1 ] ) > 0 && array_key_exists( 3, $aMatches ) && count( $aMatches[ 3 ] ) > 0 ) {
+                return array_combine( $aMatches[ 1 ], $aMatches[ 3 ] );
+            } else {
+                return array();
+            }
+        }
+
 		return $this->_sOtherInfo;
 	}
 
@@ -477,6 +515,24 @@ class Flight_Plan_Parser {
 
 		return $sReturn;
 	}
+
+    /**
+     * @param bool $blSplitted
+     * @return array
+     */
+    public function getStepClimbsFromRoute( $blSplitted = true ) {
+        $aMatches = array();
+        preg_match_all( '/(\D{1,5})([\/]{1})([A-Z0-9]{8,9})/', $this->getRoute(), $aMatches );
+        if( array_key_exists( 1, $aMatches ) && count( $aMatches[ 1 ] ) > 0 && array_key_exists( 3, $aMatches ) && count( $aMatches[ 3 ] ) > 0 ) {
+            if( $blSplitted === true ) {
+                return array_combine( $aMatches[ 1 ], $aMatches[ 3 ] );
+            } else {
+                return $aMatches[ 0 ];
+            }
+        }
+
+        return array();
+    }
 
 	/**
 	 * parse
