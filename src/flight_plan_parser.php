@@ -427,12 +427,12 @@ class Flight_Plan_Parser {
             $aData = $this->_aSuplInfo;
             if( count( $aData ) > 0 ) {
                 $aReturn = array();
-                foreach( $aData as $sData ) {
+                foreach( $aData as $sKey => $sData ) {
                     $aParts = explode( '/', $sData, 2 );
                     if( array_key_exists( 1, $aParts ) ) {
                         $aReturn[ $aParts[ 0 ] ] = $aParts[ 1 ];
                     } else {
-                        $aReturn[ $aParts[ 0 ] ] = '';
+                        $aReturn[ $sKey ] = $aParts[ 0 ];
                     }
                 }
 
@@ -647,7 +647,12 @@ class Flight_Plan_Parser {
 			if( array_key_exists( 0, $aMatches ) && count( $aMatches[ 0 ] ) > 0 ) {
 				$aSuplInfo = array();
 				foreach( $aMatches[ 0 ] as $sItem ) {
-					$aSuplInfo[] = trim( $sItem );
+					$aParts = explode( '/', $sItem, 2 );
+					if( array_key_exists( 1, $aParts ) ) {
+						$aSuplInfo[ $aParts[ 0 ] ] = trim( $aParts[ 1 ] );
+					} else {
+						$aSuplInfo[] = trim( $aParts[ 0 ] );
+					}
 				}
 				$this->setSuplInfo( $aSuplInfo );
 			}
